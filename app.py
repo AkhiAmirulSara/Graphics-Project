@@ -1,10 +1,34 @@
 from pathlib import Path
-
 import streamlit as st
 
-
 ROOT_DIR = Path(__file__).resolve().parent
-GAME_FILE = ROOT_DIR / "game" / "index.html"
+
+
+def find_game_file(root: Path) -> Path | None:
+    """Find game/index.html even if the project folder was uploaded one level too deep."""
+    candidates = [
+        root / "game" / "index.html",
+        root / "Sir_Is_Coming_Streamlit" / "game" / "index.html",
+        root / "Sir_Is_Coming_Streamlit_Fixed" / "game" / "index.html",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+
+    # GitHub uploads sometimes create an extra enclosing project directory.
+    # Search for a case-insensitive game/index.html path while skipping bulky folders.
+    ignored = {".git", ".venv", "venv", "__pycache__", ".streamlit"}
+    for path in root.rglob("index.html"):
+        try:
+            relative_parts = [part.lower() for part in path.relative_to(root).parts]
+        except ValueError:
+            continue
+        if any(part in ignored for part in relative_parts):
+            continue
+        if len(relative_parts) >= 2 and relative_parts[-2:] == ["game", "index.html"] and path.is_file():
+            return path
+    return None
+
 
 st.set_page_config(
     page_title="SIR IS COMING! | Classroom Survival",
@@ -13,47 +37,53 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Keep the Streamlit shell visually minimal so the game is the main focus.
 st.markdown(
     """
     <style>
-      .stApp, [data-testid="stAppViewContainer"] {
-        background: #07182b;
-      }
-      [data-testid="stMainBlockContainer"] {
-        max-width: 100%;
-        padding: 0.35rem 0.65rem 0.15rem 0.65rem;
-      }
-      [data-testid="stHeader"] {
-        background: transparent;
-      }
-      [data-testid="stToolbar"], footer, #MainMenu {
-        visibility: hidden;
-        height: 0;
-      }
-      iframe {
-        border: 0 !important;
-        border-radius: 12px;
-      }
+      .stApp, [data-testid="stAppViewContainer"] { background: #07182b; }
+      [data-testid="stMainBlockContainer"] { max-width: 100%; padding: .3rem .55rem .1rem; }
+      [data-testid="stHeader"] { background: transparent; }
+      [data-testid="stToolbar"], footer, #MainMenu { visibility: hidden; height: 0; }
+      iframe { border: 0 !important; border-radius: 12px; }
       @media (max-width: 700px) {
-        [data-testid="stMainBlockContainer"] {
-          padding: 0.1rem 0.1rem 0 0.1rem;
-        }
+        [data-testid="stMainBlockContainer"] { padding: .1rem; }
       }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-if not GAME_FILE.is_file():
-    st.error("Game file is missing. Expected: game/index.html")
+GAME_FILE = find_game_file(ROOT_DIR)
+
+if GAME_FILE is None:
+    st.error("Game file could not be found in this GitHub repository.")
+    st.markdown(
+        "The expected path is **`game/index.html`**, relative to `app.py`. "
+        "Upload the complete `game` folder beside `app.py`, or upload the contents "
+        "of the ZIP at the repository root."
+    )
+    st.code(
+        "repository-root/\n"
+        "├── app.py\n"
+        "├── requirements.txt\n"
+        "└── game/\n"
+        "    └── index.html",
+        language="text",
+    )
+    st.caption("For troubleshooting, files visible at the repository root:")
+    try:
+        entries = sorted(p.name + ("/" if p.is_dir() else "") for p in ROOT_DIR.iterdir() if p.name != ".git")
+        st.code("\n".join(entries) if entries else "<repository is empty>")
+    except OSError as exc:
+        st.code(str(exc))
     st.stop()
 
+# st.iframe supports a local HTML file and keeps the game's JavaScript inside an iframe.
 st.iframe(
     GAME_FILE,
     width="stretch",
     height=900,
-    alt="SIR IS COMING! interactive 2D classroom stealth and survival game",
+    tab_index=0,
 )
 
 st.caption(
