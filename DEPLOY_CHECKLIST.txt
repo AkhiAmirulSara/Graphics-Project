@@ -1,0 +1,10 @@
+STREAMLIT DEPLOY CHECKLIST
+
+[ ] Extract ZIP
+[ ] Upload the CONTENTS of Sir_Is_Coming_Streamlit to GitHub repository root
+[ ] Confirm app.py and requirements.txt are visible at repository root
+[ ] Confirm game/index.html exists
+[ ] Streamlit Community Cloud -> Create app
+[ ] Select repository and branch
+[ ] Main file path: app.py
+[ ] Deploy
